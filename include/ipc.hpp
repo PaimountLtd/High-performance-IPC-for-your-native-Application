@@ -95,6 +95,7 @@ struct function_call {
 
 struct function_reply {
 	ipc::value uid = ipc::value(0ull);
+	ipc::value obs_call_duration_ms = ipc::value(std::uint32_t(0u));
 	std::vector<ipc::value> values;
 	ipc::value error = ipc::value("");
 

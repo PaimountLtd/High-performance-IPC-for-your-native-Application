@@ -108,17 +108,19 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(const std::stri
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
+		std::chrono::high_resolution_clock::duration obs_call_duration = std::chrono::milliseconds(-2);
 	} cd;
 
-	auto cb = [](void *data, const std::vector<ipc::value> &rval) {
+	auto cb = [](void *data, const std::vector<ipc::value> &rval, std::chrono::high_resolution_clock::duration obs_call_duration) {
 		CallData &cd = *static_cast<CallData *>(data);
 		cd.values.reserve(rval.size());
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+		cd.obs_call_duration = obs_call_duration;
 		cd.called = true;
 		sem_post(cd.sem);
 	};
 
-	int uniqueId = cname.size() + fname.size() + rand();
+	const auto uniqueId = cname.size() + fname.size() + rand();
 	std::string sem_name = "sem-cb" + std::to_string(uniqueId);
 	std::string path = "/tmp/" + sem_name;
 	sem_unlink(path.c_str());
@@ -188,7 +190,7 @@ void ipc::client_osx::read_callback_msg(os::error ec, size_t size)
 	}
 
 	// Call Callback
-	cb.first(cb.second, fnc_reply_msg.values);
+	cb.first(cb.second, fnc_reply_msg.values, std::chrono::milliseconds(fnc_reply_msg.obs_call_duration_ms.value_union.ui32));
 
 	// Remove cb entry
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
@@ -200,4 +202,4 @@ bool ipc::client_osx::cancel(int64_t const &id)
 	return m_cb.erase(id) != 0;
 }
 
-void ipc::client::set_freez_callback(call_on_freez_t cb, std::string app_state) {}
+void ipc::client::set_freeze_callback(call_on_freeze_t cb, std::string app_state) {}

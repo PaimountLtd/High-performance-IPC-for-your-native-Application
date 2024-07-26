@@ -9,6 +9,8 @@ call_return_t g_fn = NULL;
 void *g_data = NULL;
 int64_t g_cbid = NULL;
 
+static const auto freeze_timeout = std::chrono::seconds(15);
+
 using namespace std::placeholders;
 
 std::shared_ptr<ipc::client> ipc::client::create(const std::string &socketPath, call_on_disconnect_t disconnectionCallback)
@@ -101,9 +103,9 @@ bool ipc::client_win::call(const std::string &cname, const std::string &fname, s
 		return false;
 	}
 
-	while ((ec = write_op->wait(std::chrono::seconds(15))) == os::error::TimedOut) {
-		if (freez_cb)
-			freez_cb(false, app_state_path, cname + "::" + fname + " sync", 15000);
+	while ((ec = write_op->wait(freeze_timeout)) == os::error::TimedOut) {
+		if (m_freeze_cb)
+			m_freeze_cb(m_app_state_path, cname + "::" + fname + " sync", 15000, -1);
 	}
 
 	if (ec != os::error::Success) {
@@ -124,15 +126,17 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::stri
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
+		std::chrono::high_resolution_clock::duration obs_call_duration = std::chrono::milliseconds(-2);
 	} cd;
 
-	auto cb = [](void *data, const std::vector<ipc::value> &rval) {
+	auto cb = [](void *data, const std::vector<ipc::value> &rval, std::chrono::high_resolution_clock::duration obs_call_duration) {
 		CallData &cd = *static_cast<CallData *>(data);
 
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 
+		cd.obs_call_duration = obs_call_duration;
 		cd.called = true;
 		cd.sgn->signal();
 	};
@@ -143,23 +147,27 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::stri
 		return {};
 	}
 
-	static std::chrono::nanoseconds freez_timeout = std::chrono::seconds(1);
-	bool freez_flagged = false;
-	while (cd.sgn->wait(freez_timeout) == os::error::TimedOut) {
-		if (freez_flagged)
-			continue;
-		freez_flagged = true;
+	static const auto long_call_timeout = std::chrono::milliseconds(100);
+	bool long_call_flagged = false;
+	bool freeze_flagged = false;
+	while (cd.sgn->wait(long_call_timeout) == os::error::TimedOut) {
+		long_call_flagged = true;
 
-		int t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - cd.start).count();
+		// Logging of probable freeze
+		const auto total_time = (std::chrono::high_resolution_clock::now() - cd.start);
+		if (!freeze_flagged && total_time > freeze_timeout) {
+			freeze_flagged = true;
+			m_freeze_cb(m_app_state_path, cname + "::" + fname, std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count(), -1);
+		}
+	}
 
-		if (freez_cb)
-			freez_cb(true, app_state_path, cname + "::" + fname, t);
+	if (long_call_flagged) {
+		const int total_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - cd.start).count();
+		const int obs_time = std::chrono::duration_cast<std::chrono::milliseconds>(cd.obs_call_duration).count();
+		if (m_freeze_cb)
+			m_freeze_cb(m_app_state_path, cname + "::" + fname, total_time, obs_time);
 	}
-	if (freez_flagged) {
-		int t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - cd.start).count();
-		if (freez_cb)
-			freez_cb(false, app_state_path, cname + "::" + fname, t);
-	}
+
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
@@ -167,10 +175,10 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::stri
 	return std::move(cd.values);
 }
 
-void ipc::client::set_freez_callback(call_on_freez_t cb, std::string app_state)
+void ipc::client::set_freeze_callback(call_on_freeze_t cb, std::string app_state)
 {
-	freez_cb = cb;
-	app_state_path = app_state;
+	m_freeze_cb = cb;
+	m_app_state_path = app_state;
 }
 
 void ipc::client_win::worker()
@@ -214,7 +222,7 @@ void ipc::client_win::worker()
 	{
 		std::unique_lock<std::mutex> ulock(m_lock);
 		for (auto &cb : m_cb) {
-			cb.second.first(cb.second.second, proc_rval);
+			cb.second.first(cb.second.second, proc_rval, std::chrono::milliseconds(0));
 		}
 
 		m_cb.clear();
@@ -279,7 +287,7 @@ void ipc::client_win::read_callback_msg(os::error ec, size_t size)
 	}
 
 	// Call Callback
-	cb.first(cb.second, fnc_reply_msg.values);
+	cb.first(cb.second, fnc_reply_msg.values, std::chrono::milliseconds(fnc_reply_msg.obs_call_duration_ms.value_union.ui32));
 
 	// Remove cb entry
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);

@@ -20,14 +20,16 @@
 #include "ipc.hpp"
 #include "ipc-class.hpp"
 #include "ipc-server-instance.hpp"
+#include "ipc-socket.hpp"
+
+#include <chrono>
+#include <functional>
 #include <list>
 #include <map>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
-#include <functional>
-#include "ipc-socket.hpp"
 
 namespace ipc {
 class server_instance;
@@ -111,7 +113,7 @@ public: // Functionality
 
 public: // Client -> Server
 	bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args, std::vector<ipc::value> &rval,
-				  std::string &errormsg);
+				  std::string &errormsg, std::chrono::high_resolution_clock::duration &call_duration);
 
 	friend class server_instance;
 };

@@ -164,12 +164,14 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 	}
 
 	// Execute
+	std::chrono::high_resolution_clock::duration call_duration;
 	proc_rval.resize(0);
 	success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str, fnc_call_msg.arguments,
-						 proc_rval, proc_error);
+						 proc_rval, proc_error, call_duration);
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
+	fnc_reply_msg.obs_call_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(call_duration).count();
 	std::swap(proc_rval, fnc_reply_msg.values); // Fast "copy" of parameters.
 	if (!success) {
 		fnc_reply_msg.error = ipc::value(proc_error);
