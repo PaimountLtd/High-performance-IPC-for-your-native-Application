@@ -28,7 +28,7 @@ extern call_return_t g_fn;
 extern void *g_data;
 extern int64_t g_cbid;
 
-typedef void (*call_on_freeze_t)(const std::string& app_state_path, const std::string& call_name, int total_time, int obs_time);
+typedef void (*call_on_freeze_t)(const std::string &app_state_path, const std::string &call_name, int total_time, int obs_time);
 
 namespace ipc {
 class client {

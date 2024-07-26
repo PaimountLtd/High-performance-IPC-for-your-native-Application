@@ -191,10 +191,10 @@ size_t ipc::message::function_call::deserialize(std::vector<char> &buf, size_t o
 
 size_t ipc::message::function_reply::size()
 {
-	size_t size = sizeof(size_t) + uid.size() /* timestamp */
-	          + obs_call_duration_ms.size()   /* call duration */
-		      + error.size()                  /* error */
-		      + sizeof(uint32_t)              /* values */;
+	size_t size = sizeof(size_t) + uid.size()   /* timestamp */
+		      + obs_call_duration_ms.size() /* call duration */
+		      + error.size()                /* error */
+		      + sizeof(uint32_t) /* values */;
 
 	for (ipc::value &v : values) {
 		size += v.size();

@@ -113,7 +113,7 @@ public: // Functionality
 
 public: // Client -> Server
 	bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args, std::vector<ipc::value> &rval,
-				  std::string &errormsg, std::chrono::high_resolution_clock::duration& call_duration);
+				  std::string &errormsg, std::chrono::high_resolution_clock::duration &call_duration);
 
 	friend class server_instance;
 };
