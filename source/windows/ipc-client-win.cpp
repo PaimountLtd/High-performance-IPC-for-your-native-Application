@@ -126,7 +126,7 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::stri
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
-		std::chrono::high_resolution_clock::duration obs_call_duration = std::chrono::milliseconds(-1);
+		std::chrono::high_resolution_clock::duration obs_call_duration = std::chrono::milliseconds(-2);
 	} cd;
 
 	auto cb = [](void *data, const std::vector<ipc::value> &rval, std::chrono::high_resolution_clock::duration obs_call_duration) {

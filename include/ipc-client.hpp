@@ -60,8 +60,6 @@ public:
 protected:
 	std::string m_app_state_path;
 	call_on_freeze_t m_freeze_cb = nullptr;
-
-private:
 	std::atomic_bool m_shutting_down = false;
 };
 }
