@@ -192,8 +192,9 @@ size_t ipc::message::function_call::deserialize(std::vector<char> &buf, size_t o
 size_t ipc::message::function_reply::size()
 {
 	size_t size = sizeof(size_t) + uid.size() /* timestamp */
-		      + error.size()              /* error */
-		      + sizeof(uint32_t) /* values */;
+	          + obs_call_duration_ms.size()   /* call duration */
+		      + error.size()                  /* error */
+		      + sizeof(uint32_t)              /* values */;
 
 	for (ipc::value &v : values) {
 		size += v.size();
@@ -213,6 +214,7 @@ size_t ipc::message::function_reply::serialize(std::vector<char> &buf, size_t of
 	noffset += sizeof(size_t);
 
 	noffset += uid.serialize(buf, noffset);
+	noffset += obs_call_duration_ms.serialize(buf, noffset);
 	noffset += error.serialize(buf, noffset);
 
 	reinterpret_cast<uint32_t &>(buf[noffset]) = (uint32_t)this->values.size();
@@ -238,6 +240,7 @@ size_t ipc::message::function_reply::deserialize(std::vector<char> &buf, size_t 
 	size_t noffset = offset + sizeof(size_t);
 
 	noffset += uid.deserialize(buf, noffset);
+	noffset += obs_call_duration_ms.deserialize(buf, noffset);
 	noffset += error.deserialize(buf, noffset);
 
 	uint32_t cnt = reinterpret_cast<uint32_t &>(buf[noffset]);

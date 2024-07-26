@@ -89,9 +89,10 @@ void ipc::server_instance_osx::worker_rep()
 		msgs.pop();
 		msg_mtx.unlock();
 
+		std::chrono::high_resolution_clock::duration call_duration;
 		proc_rval.resize(0);
 		success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-							 fnc_call_msg.arguments, proc_rval, proc_error);
+							 fnc_call_msg.arguments, proc_rval, proc_error, call_duration);
 
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;
